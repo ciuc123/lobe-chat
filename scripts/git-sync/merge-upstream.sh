@@ -24,24 +24,32 @@ print_config
 echo "Preparing to merge ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${MERGE_BRANCH}"
 
 # Ensure working tree is clean
-if [ -n "$(git status --porcelain)" ]; then
+if [ "${DRY_RUN}" != "true" ] && [ -n "$(git status --porcelain)" ]; then
   echo "ERROR: your working tree has uncommitted changes. Please commit or stash them before running this script."
   exit 1
 fi
 
-# Fetch latest from upstream
+# Fetch latest from upstream (will be echoed in DRY_RUN)
 run_cmd git fetch "${UPSTREAM_REMOTE}"
 
-# Verify upstream branch exists
-if ! git show-ref --verify --quiet "refs/remotes/${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}"; then
-  echo "ERROR: upstream branch ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} not found. Aborting."
-  exit 2
+# Verify upstream branch exists (skip check in dry-run)
+if [ "${DRY_RUN}" != "true" ]; then
+  if ! git show-ref --verify --quiet "refs/remotes/${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}"; then
+    echo "ERROR: upstream branch ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} not found. Aborting."
+    exit 2
+  fi
+else
+  echo "DRY_RUN: skipping verification of upstream remote branch refs/remotes/${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}"
 fi
 
-# Verify merge branch exists
-if ! git show-ref --verify --quiet "refs/heads/${MERGE_BRANCH}"; then
-  echo "ERROR: local merge branch ${MERGE_BRANCH} not found. Did you run create-merge-branch.sh?"
-  exit 3
+# Verify merge branch exists (skip check in dry-run)
+if [ "${DRY_RUN}" != "true" ]; then
+  if ! git show-ref --verify --quiet "refs/heads/${MERGE_BRANCH}"; then
+    echo "ERROR: local merge branch ${MERGE_BRANCH} not found. Did you run create-merge-branch.sh?"
+    exit 3
+  fi
+else
+  echo "DRY_RUN: skipping verification of local merge branch refs/heads/${MERGE_BRANCH}"
 fi
 
 # Create a safety backup of the merge branch before merging
