@@ -140,6 +140,46 @@ else
   fi
 fi
 
+# ---- NEW STEP: dependency install & pnpm lockfile handling ----
+echo "\n== STEP 5b: Install dependencies and handle pnpm lockfile issues (if pnpm present) =="
+if command -v pnpm >/dev/null 2>&1; then
+  if [ "${DRY_RUN}" = "true" ]; then
+    echo "DRY_RUN: would run: (cd \"${WORKTREE_DIR}\" && pnpm install --frozen-lockfile --prefer-offline)"
+  else
+    echo "Attempting: pnpm install --frozen-lockfile --prefer-offline inside worktree"
+    set +e
+    PNPM_OUTPUT=$(cd "${WORKTREE_DIR}" && pnpm install --frozen-lockfile --prefer-offline 2>&1)
+    PNPM_RC=$?
+    set -e
+    if [ ${PNPM_RC} -eq 0 ]; then
+      echo "pnpm install (frozen) succeeded."
+    else
+      echo "pnpm install failed. Output:"
+      echo "${PNPM_OUTPUT}"
+      if echo "${PNPM_OUTPUT}" | grep -q "ERR_PNPM_OUTDATED_LOCKFILE"; then
+        echo "Detected ERR_PNPM_OUTDATED_LOCKFILE: lockfile is outdated compared to package.json."
+        echo "Running pnpm install --no-frozen-lockfile to update pnpm-lock.yaml..."
+        (cd "${WORKTREE_DIR}" && pnpm install --no-frozen-lockfile)
+
+        # If the lockfile changed, commit it to the merge branch and push it
+        if git -C "${WORKTREE_DIR}" status --porcelain | grep -q 'pnpm-lock.yaml' || true; then
+          echo "pnpm-lock.yaml changed; committing updated lockfile to merge branch"
+          git -C "${WORKTREE_DIR}" add pnpm-lock.yaml || true
+          git -C "${WORKTREE_DIR}" commit -m "chore: update pnpm-lock.yaml after upstream merge" || true
+          echo "Pushing updated merge branch with new lockfile"
+          run_cmd git -C "${WORKTREE_DIR}" push "${ORIGIN_REMOTE}" HEAD
+        else
+          echo "pnpm-lock.yaml did not change after install; nothing to commit."
+        fi
+      else
+        echo "pnpm install failed for an unrelated reason. Please inspect the output above."
+      fi
+    fi
+  fi
+else
+  echo "pnpm not found; skipping pnpm install/lockfile handling."
+fi
+
 # STEP 6: Optional tests/build inside worktree or main repo
 read -p "Run tests/build in worktree now? [y/N] " -r
 if [[ $REPLY =~ ^[Yy]$ ]]; then

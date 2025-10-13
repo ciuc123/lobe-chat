@@ -1,56 +1,46 @@
-Git-sync utilities — minimal set for safe upstream sync + backup
+# Git-sync — single-file workflow
 
-This folder contains a minimal, safe workflow for syncing an upstream repository into your deployed branch while creating backups/snapshots first.
+This directory now contains a single authoritative script to safely sync an upstream repository into your deployed branch while creating backups and handling lockfile updates.
 
-Defaults
+Primary file
 
-- Default upstream repository: <https://github.com/lobehub/lobe-chat.git> (branch: main)
-- Default deployed branch: main
+- `full-merge-single.sh` — single orchestrator that:
+  1. Creates a timestamped backup branch and tag of the deployed branch on `origin`.
+  2. Ensures `upstream` remote is added and fetched.
+  3. Creates a separate git worktree and a merge branch to perform the merge so your main working tree is never checked out/modified.
+  4. Performs the merge inside the worktree.
+  5. Attempts a `pnpm install --frozen-lockfile --prefer-offline` inside the worktree; on `ERR_PNPM_OUTDATED_LOCKFILE` it runs `pnpm install --no-frozen-lockfile`, commits an updated `pnpm-lock.yaml` to the merge branch, and pushes it.
+  6. Optionally runs tests inside the worktree.
+  7. Pushes the merge branch to `origin` and offers to create a Pull Request (via `gh` if available, otherwise provides a GitHub PR URL).
 
-You can override these defaults by passing arguments to `full-merge.sh` or by setting the environment variables `DEFAULT_UPSTREAM_URL`, `DEFAULT_UPSTREAM_BRANCH`, or `DEFAULT_DEPLOY_BRANCH` in your shell.
+Design notes
 
-Kept scripts
-
-- config.sh
-  - Shared configuration and helpers used by all scripts. Set `DRY_RUN=true` to preview operations.
-
-- add-upstream.sh
-  - Add (or verify) an `upstream` remote and fetch it. Usage: `./add-upstream.sh <upstream_git_url>`
-
-- snapshot.sh
-  - Create a backup branch and tag of the deployed branch on `origin` and push them. Usage: `./snapshot.sh [deployed_branch]`
-
-- create-merge-branch.sh
-  - Create a safe local merge branch based on the deployed branch (does not modify the deployed branch). Usage: `./create-merge-branch.sh [deployed_branch]`
-
-- merge-upstream.sh
-  - Merge from `upstream/<branch>` into the merge branch. Usage: `./merge-upstream.sh [upstream_branch] [merge_branch]`
-
-- run-ci-and-build.sh
-  - Run tests (and optionally build) to verify the merge. This script auto-detects pnpm/yarn/npm and runs the test target. Usage: `./run-ci-and-build.sh`
-
-- full-merge.sh
-  - Orchestrator that runs: snapshot -> add-upstream -> create-merge-branch -> merge-upstream -> optional tests & push. Usage: `./full-merge.sh [upstream_git_url] [upstream_branch] [deployed_branch]`
+- The script uses a temporary git worktree so checking out remote branches does not remove local files (prevents the earlier issue where checking out a remote branch removed `scripts/git-sync/` files).
+- Default upstream: `https://github.com/lobehub/lobe-chat.git` (branch `main`). Default deployed branch: `main`.
+- Dry run: set `DRY_RUN=true` to print planned commands instead of executing them.
 
 Quick usage
 
-2. Preview actions (dry run):
+Preview (dry-run):
 
 ```bash
-DRY_RUN=true ./scripts/git-sync/full-merge.sh
-# or with explicit upstream
-DRY_RUN=true ./scripts/git-sync/full-merge.sh https://github.com/upstream/repo.git main
+DRY_RUN=true ./scripts/git-sync/full-merge-single.sh
 ```
 
-1. Use defaults (no args):
+Run with defaults interactively:
 
 ```bash
-# Uses upstream=https://github.com/lobehub/lobe-chat.git (main) and deployed branch 'main'
-./scripts/git-sync/full-merge.sh
+./scripts/git-sync/full-merge-single.sh
 ```
 
-Notes & safety
+Run with explicit upstream and branch:
 
-- All operations that modify the repository check for a clean working tree before proceeding.
-- The scripts avoid overwriting your deployed branch; instead they create backups and merge into a separate merge branch.
-- After a successful merge, review and run tests locally before pushing the merge branch and creating a PR.
+```bash
+./scripts/git-sync/full-merge-single.sh https://github.com/upstream/repo.git main production
+```
+
+Notes
+
+- The script will create backup branches and tags before merging.
+- If `pnpm` shows `ERR_PNPM_OUTDATED_LOCKFILE` after the merge, the script will update the lockfile in the merge branch and push the updated lockfile.
+- If you prefer the older helper scripts, they can be recovered from git history.
