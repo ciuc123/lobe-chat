@@ -20,10 +20,10 @@ DRY_RUN=${DRY_RUN:-false}
 
 run_cmd() {
   if [ "${DRY_RUN}" = "true" ]; then
-    echo "DRY_RUN: $*"
+    printf 'DRY_RUN: %s\n' "$*"
   else
-    echo "+ $*"
-    eval "$@"
+    printf '+ %s\n' "$*"
+    "$@"
   fi
 }
 
