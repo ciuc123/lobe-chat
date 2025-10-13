@@ -41,7 +41,13 @@ echo "Will create a local branch named like '${MERGE_PREFIX}-${DEPLOY_BRANCH}-<t
 "${SCRIPT_DIR}/create-merge-branch.sh" "${DEPLOY_BRANCH}"
 
 # Step 4: Detect merge branch
-MERGE_BRANCH=$(git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads/ | grep "${MERGE_PREFIX}" | head -n1 || true)
+if [ "${DRY_RUN}" = "true" ]; then
+  # In dry-run mode we didn't actually create the branch, so predict the name used by create-merge-branch.sh
+  MERGE_BRANCH="${MERGE_PREFIX}-${DEPLOY_BRANCH}-${DATE_SUFFIX}"
+  echo "DRY_RUN: assuming merge branch would be: ${MERGE_BRANCH}"
+else
+  MERGE_BRANCH=$(git for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads/ | grep "${MERGE_PREFIX}" | head -n1 || true)
+fi
 if [ -z "${MERGE_BRANCH}" ]; then
   echo "Could not find merge branch. Exiting."; exit 3
 fi

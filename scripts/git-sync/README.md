@@ -34,13 +34,6 @@ Kept scripts
 
 Quick usage
 
-1. Use defaults (no args):
-
-```bash
-# Uses upstream=https://github.com/lobehub/lobe-chat.git (main) and deployed branch 'main'
-./scripts/git-sync/full-merge.sh
-```
-
 2. Preview actions (dry run):
 
 ```bash
@@ -49,10 +42,11 @@ DRY_RUN=true ./scripts/git-sync/full-merge.sh
 DRY_RUN=true ./scripts/git-sync/full-merge.sh https://github.com/upstream/repo.git main
 ```
 
-3. Run the full flow interactively:
+1. Use defaults (no args):
 
 ```bash
-./scripts/git-sync/full-merge.sh https://github.com/upstream/repo.git main
+# Uses upstream=https://github.com/lobehub/lobe-chat.git (main) and deployed branch 'main'
+./scripts/git-sync/full-merge.sh
 ```
 
 Notes & safety

@@ -15,7 +15,7 @@ print_config
 echo "Preparing snapshot for remote branch '${ORIGIN_REMOTE}/${BRANCH}'"
 
 # Ensure working tree is clean (avoid overwriting uncommitted changes)
-if [ -n "$(git status --porcelain)" ]; then
+if [ "${DRY_RUN}" != "true" ] && [ -n "$(git status --porcelain)" ]; then
   echo "ERROR: your working tree has uncommitted changes. Please commit, stash, or set DRY_RUN=true to continue."
   exit 1
 fi

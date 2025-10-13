@@ -13,7 +13,7 @@ print_config
 echo "Preparing to create a safe merge branch from remote ${ORIGIN_REMOTE}/${TARGET_BRANCH}"
 
 # Ensure working tree is clean
-if [ -n "$(git status --porcelain)" ]; then
+if [ "${DRY_RUN}" != "true" ] && [ -n "$(git status --porcelain)" ]; then
   echo "ERROR: your working tree has uncommitted changes. Please commit or stash them before running this script."
   exit 1
 fi
