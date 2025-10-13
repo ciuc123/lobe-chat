@@ -157,7 +157,47 @@ fi
 read -p "Push merge branch ${MERGE_BRANCH} to ${ORIGIN_REMOTE}? [y/N] " -r
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   run_cmd git push "${ORIGIN_REMOTE}" "${MERGE_BRANCH}"
-  echo "Pushed ${MERGE_BRANCH} to ${ORIGIN_REMOTE}. Create a PR on your provider to merge into ${DEPLOY_BRANCH}."
+  echo "Pushed ${MERGE_BRANCH} to ${ORIGIN_REMOTE}."
+
+  # Offer to create a PR automatically (Option A)
+  read -p "Create a pull request for ${MERGE_BRANCH} -> ${DEPLOY_BRANCH}? [Y/n] " -r
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    echo "Skipping PR creation. You can create a PR on your hosting provider."
+  else
+    # Try to use GitHub CLI (gh) first
+    if command -v gh >/dev/null 2>&1; then
+      echo "Creating PR via gh..."
+      PR_TITLE="Sync: merge ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${DEPLOY_BRANCH}"
+      PR_BODY="This PR was created by scripts/git-sync/full-merge-single.sh. It merges ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${DEPLOY_BRANCH}. Please review and run CI before merging."
+      if [ "${DRY_RUN}" = "true" ]; then
+        echo "DRY_RUN: gh pr create --base ${DEPLOY_BRANCH} --head ${MERGE_BRANCH} --title \"${PR_TITLE}\" --body \"${PR_BODY}\""
+      else
+        gh pr create --base "${DEPLOY_BRANCH}" --head "${MERGE_BRANCH}" --title "${PR_TITLE}" --body "${PR_BODY}"
+      fi
+    else
+      # Construct a GitHub PR URL from origin remote if possible
+      ORIGIN_URL=$(git remote get-url "${ORIGIN_REMOTE}" 2>/dev/null || true)
+      if [ -n "${ORIGIN_URL}" ]; then
+        # Normalize git@ and https URLs to https://github.com/owner/repo
+        if echo "${ORIGIN_URL}" | grep -q "github.com"; then
+          # remove .git suffix
+          REPO_PATH=$(echo "${ORIGIN_URL}" | sed -E 's#^(git@|https?://)([^/:]+)[:/]+([^/]+/[^/]+)(\.git)?$#\3#')
+          PR_URL="https://github.com/${REPO_PATH}/pull/new/${MERGE_BRANCH}?base=${DEPLOY_BRANCH}"
+          echo "Open this URL to create a PR:"
+          echo "${PR_URL}"
+          # Try to open in browser if xdg-open exists
+          if command -v xdg-open >/dev/null 2>&1 && [ "${DRY_RUN}" != "true" ]; then
+            xdg-open "${PR_URL}" || true
+          fi
+        else
+          echo "Could not auto-construct PR URL from origin remote: ${ORIGIN_URL}"
+          echo "Please create a PR from ${MERGE_BRANCH} into ${DEPLOY_BRANCH} on your hosting provider."
+        fi
+      else
+        echo "No origin remote found; please create a PR manually from ${MERGE_BRANCH} into ${DEPLOY_BRANCH}."
+      fi
+    fi
+  fi
 else
   echo "Skipping push. To push later: git push ${ORIGIN_REMOTE} ${MERGE_BRANCH}";
 fi
