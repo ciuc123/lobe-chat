@@ -2,6 +2,13 @@ Git-sync utilities — minimal set for safe upstream sync + backup
 
 This folder contains a minimal, safe workflow for syncing an upstream repository into your deployed branch while creating backups/snapshots first.
 
+Defaults
+
+- Default upstream repository: <https://github.com/lobehub/lobe-chat.git> (branch: main)
+- Default deployed branch: main
+
+You can override these defaults by passing arguments to `full-merge.sh` or by setting the environment variables `DEFAULT_UPSTREAM_URL`, `DEFAULT_UPSTREAM_BRANCH`, or `DEFAULT_DEPLOY_BRANCH` in your shell.
+
 Kept scripts
 
 - config.sh
@@ -19,32 +26,34 @@ Kept scripts
 - merge-upstream.sh
   - Merge from `upstream/<branch>` into the merge branch. Usage: `./merge-upstream.sh [upstream_branch] [merge_branch]`
 
+- run-ci-and-build.sh
+  - Run tests (and optionally build) to verify the merge. This script auto-detects pnpm/yarn/npm and runs the test target. Usage: `./run-ci-and-build.sh`
+
 - full-merge.sh
-  - Orchestrator that runs: snapshot -> add-upstream -> create-merge-branch -> merge-upstream. Usage: `./full-merge.sh <upstream_git_url> [upstream_branch] [deployed_branch]`
-
-Design goals
-
-- Minimal: only the scripts needed for the "sync upstream + backup" flow are kept.
-- Safe: snapshot creates backups before any merge, and merge operations create pre-merge backups.
-- Dry-run support: set `DRY_RUN=true` to make scripts print commands instead of executing them.
+  - Orchestrator that runs: snapshot -> add-upstream -> create-merge-branch -> merge-upstream -> optional tests & push. Usage: `./full-merge.sh [upstream_git_url] [upstream_branch] [deployed_branch]`
 
 Quick usage
 
-1. Preview actions (dry run):
+1. Use defaults (no args):
 
 ```bash
-DRY_RUN=true ./full-merge.sh https://github.com/upstream/repo.git main
+# Uses upstream=https://github.com/lobehub/lobe-chat.git (main) and deployed branch 'main'
+./scripts/git-sync/full-merge.sh
 ```
 
-2. Run the full flow interactively:
+2. Preview actions (dry run):
 
 ```bash
-./full-merge.sh https://github.com/upstream/repo.git main
+DRY_RUN=true ./scripts/git-sync/full-merge.sh
+# or with explicit upstream
+DRY_RUN=true ./scripts/git-sync/full-merge.sh https://github.com/upstream/repo.git main
 ```
 
-What was removed
+3. Run the full flow interactively:
 
-- Any helper scripts that were unrelated to the upstream sync + backup flow were deleted (for a minimal repo). If you need any of those later, they can be recovered from git history.
+```bash
+./scripts/git-sync/full-merge.sh https://github.com/upstream/repo.git main
+```
 
 Notes & safety
 

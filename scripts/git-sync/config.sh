@@ -4,6 +4,11 @@
 # Default branch where your deployed code lives
 DEFAULT_DEPLOY_BRANCH="main"
 
+# Default upstream repository and branch (used when no args provided)
+# Default upstream repo: lobehub/lobe-chat (HTTPS). You can override with env var DEFAULT_UPSTREAM_URL.
+DEFAULT_UPSTREAM_URL="${DEFAULT_UPSTREAM_URL:-https://github.com/lobehub/lobe-chat.git}"
+DEFAULT_UPSTREAM_BRANCH="${DEFAULT_UPSTREAM_BRANCH:-main}"
+
 # Remote names
 ORIGIN_REMOTE="origin"
 UPSTREAM_REMOTE="upstream"
@@ -32,6 +37,8 @@ print_config() {
   cat <<EOF
 CONFIG:
   DEFAULT_DEPLOY_BRANCH=${DEFAULT_DEPLOY_BRANCH}
+  DEFAULT_UPSTREAM_URL=${DEFAULT_UPSTREAM_URL}
+  DEFAULT_UPSTREAM_BRANCH=${DEFAULT_UPSTREAM_BRANCH}
   ORIGIN_REMOTE=${ORIGIN_REMOTE}
   UPSTREAM_REMOTE=${UPSTREAM_REMOTE}
   MERGE_PREFIX=${MERGE_PREFIX}
@@ -39,4 +46,3 @@ CONFIG:
   DRY_RUN=${DRY_RUN}
 EOF
 }
-
