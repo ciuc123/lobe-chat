@@ -62,13 +62,19 @@ echo "Created safety backup: ${BACKUP_BEFORE_MERGE} -> ${MERGE_BRANCH}"
 run_cmd git checkout "${MERGE_BRANCH}"
 
 # Perform merge with --no-ff to preserve history
-if git merge --no-ff "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" -m "Merge ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${MERGE_BRANCH}"; then
-  echo "Merge completed cleanly. Review changes, run tests, then push a PR."
+MERGE_MSG="Merge ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${MERGE_BRANCH}"
+if [ "${DRY_RUN}" = "true" ]; then
+  echo "DRY_RUN: would run: git merge --no-ff ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} -m \"${MERGE_MSG}\""
+  echo "DRY_RUN: no merge performed; conflicts (if any) cannot be detected in dry-run mode."
 else
-  echo "Merge produced conflicts. The repo is left in a conflicted state on branch ${MERGE_BRANCH}."
-  echo "Resolve conflicts in files listed by 'git status', then run:"
-  echo "  git add <resolved-files>"
-  echo "  git commit "
-  echo "After resolving, test and push the branch to origin."
-  exit 1
+  if git merge --no-ff "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" -m "${MERGE_MSG}"; then
+    echo "Merge completed cleanly. Review changes, run tests, then push a PR."
+  else
+    echo "Merge produced conflicts. The repo is left in a conflicted state on branch ${MERGE_BRANCH}."
+    echo "Resolve conflicts in files listed by 'git status', then run:"
+    echo "  git add <resolved-files>"
+    echo "  git commit"
+    echo "After resolving, test and push the branch to origin."
+    exit 1
+  fi
 fi
