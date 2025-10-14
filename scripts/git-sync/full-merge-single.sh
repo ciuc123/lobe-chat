@@ -237,17 +237,55 @@ if [[ $PUSH_REPLY =~ ^[Yy]$ ]]; then
   run_cmd git push "${ORIGIN_REMOTE}" "${MERGE_BRANCH}"
   echo "Pushed ${MERGE_BRANCH} to ${ORIGIN_REMOTE}."
 
-  # Offer to create a PR automatically (Option A)
+  # Offer to merge directly into deploy branch (Option A: direct merge)
+  # or create a PR (Option B: via PR workflow)
   if [ "${AUTO_CREATE_PR}" = "true" ]; then
-    PR_REPLY="y"
+    MERGE_STRATEGY="pr"
   else
-    read -p "Create a pull request for ${MERGE_BRANCH} -> ${DEPLOY_BRANCH}? [Y/n] " -r
-    PR_REPLY="$REPLY"
+    read -p "Merge ${MERGE_BRANCH} directly into ${DEPLOY_BRANCH} locally? [Y/n] (choose 'n' to create PR instead) " -r
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+      MERGE_STRATEGY="pr"
+    else
+      MERGE_STRATEGY="direct"
+    fi
   fi
 
-  if [[ $PR_REPLY =~ ^[Nn]$ ]]; then
-    echo "Skipping PR creation. You can create a PR on your hosting provider."
+  if [ "${MERGE_STRATEGY}" = "direct" ]; then
+    echo "Performing direct merge of ${MERGE_BRANCH} into ${DEPLOY_BRANCH}..."
+
+    # Fetch the latest state of deploy branch
+    run_cmd git fetch "${ORIGIN_REMOTE}" "${DEPLOY_BRANCH}"
+
+    # Checkout deploy branch in main repo
+    echo "Switching to ${DEPLOY_BRANCH} branch..."
+    run_cmd git checkout "${DEPLOY_BRANCH}"
+
+    # Pull latest changes
+    run_cmd git pull "${ORIGIN_REMOTE}" "${DEPLOY_BRANCH}" --rebase
+
+    # Merge the merge branch into deploy branch
+    if [ "${DRY_RUN}" = "true" ]; then
+      echo "DRY_RUN: git merge --no-ff ${MERGE_BRANCH} -m 'Merge ${MERGE_BRANCH}: sync ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${DEPLOY_BRANCH}'"
+    else
+      if git merge --no-ff "${MERGE_BRANCH}" -m "Merge ${MERGE_BRANCH}: sync ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${DEPLOY_BRANCH}"; then
+        echo "Successfully merged ${MERGE_BRANCH} into ${DEPLOY_BRANCH}."
+
+        # Ask if user wants to push the merged deploy branch
+        read -p "Push ${DEPLOY_BRANCH} to ${ORIGIN_REMOTE}? [Y/n] " -r
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+          run_cmd git push "${ORIGIN_REMOTE}" "${DEPLOY_BRANCH}"
+          echo "Pushed ${DEPLOY_BRANCH} to ${ORIGIN_REMOTE}."
+        else
+          echo "Skipping push. To push later: git push ${ORIGIN_REMOTE} ${DEPLOY_BRANCH}"
+        fi
+      else
+        echo "ERROR: Merge failed. Please resolve conflicts manually."
+        echo "To abort the merge: git merge --abort"
+        exit 1
+      fi
+    fi
   else
+    echo "Creating pull request instead of direct merge..."
     # Try to use GitHub CLI (gh) first
     if command -v gh >/dev/null 2>&1; then
       echo "Creating PR via gh..."
