@@ -4,14 +4,14 @@ This directory now contains a single authoritative script to safely sync an upst
 
 Primary file
 
-- `full-merge-single.sh` — single orchestrator that:
-  1. Creates a timestamped backup branch and tag of the deployed branch on `origin`.
-  2. Ensures `upstream` remote is added and fetched.
-  3. Creates a separate git worktree and a merge branch to perform the merge so your main working tree is never checked out/modified.
-  4. Performs the merge inside the worktree.
-  5. Attempts a `pnpm install --frozen-lockfile --prefer-offline` inside the worktree; on `ERR_PNPM_OUTDATED_LOCKFILE` it runs `pnpm install --no-frozen-lockfile`, commits an updated `pnpm-lock.yaml` to the merge branch, and pushes it.
-  6. Optionally runs tests inside the worktree.
-  7. Pushes the merge branch to `origin` and offers to create a Pull Request (via `gh` if available, otherwise provides a GitHub PR URL).
+- STEP 0: Fetch remotes → Check for changes → Exit if up-to-date ✅
+- STEP 1: Create backup branch and tag (only if changes exist)
+- STEP 2: Create merge branch in worktree
+- STEP 3: Create pre-merge backup
+- STEP 4: Perform merge
+- STEP 4b: Handle pnpm lockfile updates
+- STEP 5: Optional tests
+- STEP 6: Push and optionally create PR
 
 Design notes
 
