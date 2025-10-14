@@ -160,20 +160,48 @@ if command -v pnpm >/dev/null 2>&1; then
     else
       echo "pnpm install failed. Output:"
       echo "${PNPM_OUTPUT}"
-      if echo "${PNPM_OUTPUT}" | grep -q "ERR_PNPM_OUTDATED_LOCKFILE"; then
-        echo "Detected ERR_PNPM_OUTDATED_LOCKFILE: lockfile is outdated compared to package.json."
-        echo "Running pnpm install --no-frozen-lockfile to update pnpm-lock.yaml..."
-        (cd "${WORKTREE_DIR}" && pnpm install --no-frozen-lockfile)
 
-        # If the lockfile changed, commit it to the merge branch and push it
-        if git -C "${WORKTREE_DIR}" status --porcelain | grep -q 'pnpm-lock.yaml' || true; then
-          echo "pnpm-lock.yaml changed; committing updated lockfile to merge branch"
-          git -C "${WORKTREE_DIR}" add pnpm-lock.yaml || true
-          git -C "${WORKTREE_DIR}" commit -m "chore: update pnpm-lock.yaml after upstream merge" || true
-          echo "Pushing updated merge branch with new lockfile"
-          run_cmd git -C "${WORKTREE_DIR}" push "${ORIGIN_REMOTE}" HEAD
+      # If lockfile is outdated, try a workspace-level install to update lockfile(s)
+      if echo "${PNPM_OUTPUT}" | grep -q "ERR_PNPM_OUTDATED_LOCKFILE" || echo "${PNPM_OUTPUT}" | grep -q "outdated lockfile"; then
+        echo "Detected outdated pnpm lockfile. Running workspace install to update lockfile(s)..."
+
+        # Try updating the workspace lockfile(s) at repo root inside the worktree
+        (cd "${WORKTREE_DIR}" && pnpm install --no-frozen-lockfile -w)
+
+        # Check for any changed pnpm lockfiles anywhere in the repo/worktree
+        CHANGED_LOCKFILES=$(git -C "${WORKTREE_DIR}" status --porcelain | awk '{print $2}' | grep -E 'pnpm-lock.yaml$' || true)
+        if [ -n "${CHANGED_LOCKFILES}" ]; then
+          echo "Detected updated lockfile(s):"
+          echo "${CHANGED_LOCKFILES}"
+
+          # Stage each changed lockfile
+          while IFS= read -r lf; do
+            # Defensive: ensure file exists before adding
+            if [ -f "${WORKTREE_DIR}/${lf}" ]; then
+              git -C "${WORKTREE_DIR}" add "${lf}" || true
+            fi
+          done <<< "${CHANGED_LOCKFILES}"
+
+          # If nothing was staged by name (older git versions or odd paths), fall back to adding pnpm-lock.yaml at root
+          if git -C "${WORKTREE_DIR}" diff --cached --name-only | grep -q 'pnpm-lock.yaml' 2>/dev/null; then
+            echo "Committing updated lockfile(s) to merge branch"
+            git -C "${WORKTREE_DIR}" commit -m "chore: update pnpm-lock.yaml after upstream merge" || true
+            echo "Pushing updated merge branch with new lockfile(s)"
+            run_cmd git -C "${WORKTREE_DIR}" push "${ORIGIN_REMOTE}" HEAD
+          else
+            # If no staged changes, try adding root lockfile explicitly and commit if it exists
+            if [ -f "${WORKTREE_DIR}/pnpm-lock.yaml" ]; then
+              git -C "${WORKTREE_DIR}" add pnpm-lock.yaml || true
+              git -C "${WORKTREE_DIR}" commit -m "chore: update pnpm-lock.yaml after upstream merge" || true
+              run_cmd git -C "${WORKTREE_DIR}" push "${ORIGIN_REMOTE}" HEAD
+            else
+              echo "No pnpm-lock.yaml found to commit after running install. Please inspect ${WORKTREE_DIR} manually."
+            fi
+          fi
         else
-          echo "pnpm-lock.yaml did not change after install; nothing to commit."
+          echo "pnpm install indicated an outdated lockfile but no lockfile changes were detected. You may need to run:"
+          echo "  (cd ${WORKTREE_DIR} && pnpm install --no-frozen-lockfile -w)"
+          echo "Then commit any updated pnpm-lock.yaml files to the merge branch and push."
         fi
       else
         echo "pnpm install failed for an unrelated reason. Please inspect the output above."
