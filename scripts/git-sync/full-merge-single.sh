@@ -46,6 +46,10 @@ UPSTREAM_URL="${1:-${DEFAULT_UPSTREAM_URL}}"
 UPSTREAM_BRANCH="${2:-${DEFAULT_UPSTREAM_BRANCH}}"
 DEPLOY_BRANCH="${3:-${DEFAULT_DEPLOY_BRANCH}}"
 
+# Support non-interactive mode via env vars
+AUTO_PUSH="${AUTO_PUSH:-true}"
+AUTO_CREATE_PR="${AUTO_CREATE_PR:-false}"
+
 # Derived names
 MERGE_BRANCH_BASE="${MERGE_PREFIX}-${DEPLOY_BRANCH}-${DATE_SUFFIX}"
 MERGE_BRANCH="${MERGE_BRANCH_BASE}"
@@ -194,14 +198,26 @@ else
 fi
 
 # STEP 7: Offer to push the merge branch to origin
-read -p "Push merge branch ${MERGE_BRANCH} to ${ORIGIN_REMOTE}? [y/N] " -r
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+# If AUTO_PUSH=true, skip interactive prompt and push automatically.
+if [ "${AUTO_PUSH}" = "true" ]; then
+  PUSH_REPLY="y"
+else
+  read -p "Push merge branch ${MERGE_BRANCH} to ${ORIGIN_REMOTE}? [y/N] " -r
+  PUSH_REPLY="$REPLY"
+fi
+if [[ $PUSH_REPLY =~ ^[Yy]$ ]]; then
   run_cmd git push "${ORIGIN_REMOTE}" "${MERGE_BRANCH}"
   echo "Pushed ${MERGE_BRANCH} to ${ORIGIN_REMOTE}."
 
   # Offer to create a PR automatically (Option A)
-  read -p "Create a pull request for ${MERGE_BRANCH} -> ${DEPLOY_BRANCH}? [Y/n] " -r
-  if [[ $REPLY =~ ^[Nn]$ ]]; then
+  if [ "${AUTO_CREATE_PR}" = "true" ]; then
+    PR_REPLY="y"
+  else
+    read -p "Create a pull request for ${MERGE_BRANCH} -> ${DEPLOY_BRANCH}? [Y/n] " -r
+    PR_REPLY="$REPLY"
+  fi
+
+  if [[ $PR_REPLY =~ ^[Nn]$ ]]; then
     echo "Skipping PR creation. You can create a PR on your hosting provider."
   else
     # Try to use GitHub CLI (gh) first
