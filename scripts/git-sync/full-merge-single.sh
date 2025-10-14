@@ -158,11 +158,11 @@ fi
 echo "\n== STEP 4b: Install dependencies and handle pnpm lockfile issues (if pnpm present) =="
 if command -v pnpm >/dev/null 2>&1; then
   if [ "${DRY_RUN}" = "true" ]; then
-    echo "DRY_RUN: would run: (cd \"${WORKTREE_DIR}\" && pnpm install --frozen-lockfile --prefer-offline)"
+    echo "DRY_RUN: would run: (cd \"${WORKTREE_DIR}\" && pnpm install)"
   else
-    echo "Attempting: pnpm install --frozen-lockfile --prefer-offline inside worktree"
+    echo "Attempting: pnpm install inside worktree"
     set +e
-    PNPM_OUTPUT=$(cd "${WORKTREE_DIR}" && pnpm install --frozen-lockfile --prefer-offline 2>&1)
+    PNPM_OUTPUT=$(cd "${WORKTREE_DIR}" && pnpm install 2>&1)
     PNPM_RC=$?
     set -e
     if [ ${PNPM_RC} -eq 0 ]; then
