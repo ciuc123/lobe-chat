@@ -73,21 +73,16 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "Aborted by user."; exit 1
 fi
 
-# STEP 1: Snapshot deployed branch on origin (backup branch + tag)
-echo "\n== STEP 1: Snapshot ${ORIGIN_REMOTE}/${DEPLOY_BRANCH} -> branch ${BACKUP_BRANCH} and tag deployed-${DATE_SUFFIX} =="
+# STEP 0: Fetch remotes and check if merge is needed
+echo "\n== STEP 0: Fetch remotes and check for upstream changes =="
 # fetch origin to ensure ref exists
 run_cmd git fetch "${ORIGIN_REMOTE}" --tags
 # verify origin branch exists
 if ! git show-ref --verify --quiet "refs/remotes/${ORIGIN_REMOTE}/${DEPLOY_BRANCH}"; then
   echo "ERROR: remote branch ${ORIGIN_REMOTE}/${DEPLOY_BRANCH} not found. Aborting."; exit 2
 fi
-run_cmd git branch "${BACKUP_BRANCH}" "${ORIGIN_REMOTE}/${DEPLOY_BRANCH}"
-run_cmd git tag "deployed-${DATE_SUFFIX}" "${ORIGIN_REMOTE}/${DEPLOY_BRANCH}"
-run_cmd git push "${ORIGIN_REMOTE}" "${BACKUP_BRANCH}"
-run_cmd git push "${ORIGIN_REMOTE}" --tags
 
-# STEP 2: Ensure upstream remote exists and is fetched
-echo "\n== STEP 2: Add/fetch upstream remote (${UPSTREAM_REMOTE}) =="
+# Ensure upstream remote exists and fetch it
 if git remote get-url "${UPSTREAM_REMOTE}" >/dev/null 2>&1; then
   EXISTING_URL=$(git remote get-url "${UPSTREAM_REMOTE}")
   echo "Found existing remote ${UPSTREAM_REMOTE}: ${EXISTING_URL}"
@@ -100,8 +95,23 @@ else
 fi
 run_cmd git fetch "${UPSTREAM_REMOTE}" --tags
 
-# STEP 3: Create a safe merge branch in a new worktree (does not change main working tree)
-echo "\n== STEP 3: Create merge branch ${MERGE_BRANCH} in worktree ${WORKTREE_DIR} =="
+# Check if there are any upstream changes to merge
+if git merge-base --is-ancestor "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" "${ORIGIN_REMOTE}/${DEPLOY_BRANCH}"; then
+  echo "✓ No upstream changes detected. ${ORIGIN_REMOTE}/${DEPLOY_BRANCH} is already up-to-date with ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}."
+  echo "Nothing to merge. Exiting."
+  exit 0
+fi
+echo "✓ Upstream changes detected. Proceeding with merge..."
+
+# STEP 1: Snapshot deployed branch on origin (backup branch + tag)
+echo "\n== STEP 1: Snapshot ${ORIGIN_REMOTE}/${DEPLOY_BRANCH} -> branch ${BACKUP_BRANCH} and tag deployed-${DATE_SUFFIX} =="
+run_cmd git branch "${BACKUP_BRANCH}" "${ORIGIN_REMOTE}/${DEPLOY_BRANCH}"
+run_cmd git tag "deployed-${DATE_SUFFIX}" "${ORIGIN_REMOTE}/${DEPLOY_BRANCH}"
+run_cmd git push "${ORIGIN_REMOTE}" "${BACKUP_BRANCH}"
+run_cmd git push "${ORIGIN_REMOTE}" --tags
+
+# STEP 2: Create a safe merge branch in a new worktree (does not change main working tree)
+echo "\n== STEP 2: Create merge branch ${MERGE_BRANCH} in worktree ${WORKTREE_DIR} =="
 # Make sure the worktree dir does not yet exist
 if [ -d "${WORKTREE_DIR}" ]; then
   echo "Worktree dir ${WORKTREE_DIR} already exists. Please remove it and retry."; exit 3
@@ -117,13 +127,13 @@ if ! git show-ref --verify --quiet "refs/heads/${MERGE_BRANCH}"; then
   echo "ERROR: failed to create merge branch ${MERGE_BRANCH}. Aborting."; exit 4
 fi
 
-# STEP 4: Create a pre-merge safety backup of the merge branch in the main repo
+# STEP 3: Create a pre-merge safety backup of the merge branch in the main repo
 PRE_MERGE_BACKUP="${MERGE_BRANCH}-pre-merge-${DATE_SUFFIX}"
-echo "\n== STEP 4: Create pre-merge backup branch ${PRE_MERGE_BACKUP} =="
+echo "\n== STEP 3: Create pre-merge backup branch ${PRE_MERGE_BACKUP} =="
 run_cmd git branch "${PRE_MERGE_BACKUP}" "${MERGE_BRANCH}"
 
-# STEP 5: Perform the merge inside the worktree
-echo "\n== STEP 5: Merge ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${MERGE_BRANCH} (inside worktree) =="
+# STEP 4: Perform the merge inside the worktree
+echo "\n== STEP 4: Merge ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} into ${MERGE_BRANCH} (inside worktree) =="
 # fetch upstream inside worktree
 run_cmd git -C "${WORKTREE_DIR}" fetch "${UPSTREAM_REMOTE}"
 
@@ -145,7 +155,7 @@ else
 fi
 
 # ---- NEW STEP: dependency install & pnpm lockfile handling ----
-echo "\n== STEP 5b: Install dependencies and handle pnpm lockfile issues (if pnpm present) =="
+echo "\n== STEP 4b: Install dependencies and handle pnpm lockfile issues (if pnpm present) =="
 if command -v pnpm >/dev/null 2>&1; then
   if [ "${DRY_RUN}" = "true" ]; then
     echo "DRY_RUN: would run: (cd \"${WORKTREE_DIR}\" && pnpm install --frozen-lockfile --prefer-offline)"
@@ -212,7 +222,7 @@ else
   echo "pnpm not found; skipping pnpm install/lockfile handling."
 fi
 
-# STEP 6: Optional tests/build inside worktree or main repo
+# STEP 5: Optional tests/build inside worktree or main repo
 read -p "Run tests/build in worktree now? [y/N] " -r
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   # prefer pnpm if available
@@ -225,7 +235,7 @@ else
   echo "Skipping tests/build. You can run tests inside the worktree at: cd ${WORKTREE_DIR}"
 fi
 
-# STEP 7: Offer to push the merge branch to origin
+# STEP 6: Offer to push the merge branch to origin
 # If AUTO_PUSH=true, skip interactive prompt and push automatically.
 if [ "${AUTO_PUSH}" = "true" ]; then
   PUSH_REPLY="y"
