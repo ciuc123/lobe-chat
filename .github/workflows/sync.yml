@@ -6,8 +6,9 @@ permissions:
   actions: write
 
 on:
-  schedule:
-    - cron: '0 */6 * * *' # every 6 hours
+  # Scheduled runs disabled because upstream sync is failing frequently.
+  # To re-enable automatic syncing, restore the `schedule` block below or
+  # revert this change.
   workflow_dispatch:
 
 jobs:
