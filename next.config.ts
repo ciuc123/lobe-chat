@@ -53,6 +53,7 @@ const nextConfig: NextConfig = {
     // refs: https://github.com/lobehub/lobe-chat/pull/7430
     serverMinification: false,
     webVitalsAttribution: isVercel ? [] : ['CLS', 'LCP'],
+    webpackBuildWorker: true,
     webpackMemoryOptimizations: true,
   },
   // Disable source maps on Vercel to save memory
@@ -280,7 +281,7 @@ const nextConfig: NextConfig = {
   ],
 
   // when external packages in dev mode with turbopack, this config will lead to bundle error
-  serverExternalPackages: isProd ? ['@electric-sql/pglite'] : undefined,
+  serverExternalPackages: isProd ? ['@electric-sql/pglite', "pdfkit"] : ["pdfkit"],
 
   transpilePackages: ['pdfjs-dist', 'mermaid'],
 
@@ -365,10 +366,10 @@ const withBundleAnalyzer = process.env.ANALYZE === 'true' ? analyzer() : noWrapp
 const withPWA =
   isProd && !isDesktop && !isVercel
     ? withSerwistInit({
-        register: false,
-        swDest: 'public/sw.js',
-        swSrc: 'src/app/sw.ts',
-      })
+      register: false,
+      swDest: 'public/sw.js',
+      swSrc: 'src/app/sw.ts',
+    })
     : noWrapper;
 
 export default withBundleAnalyzer(withPWA(nextConfig as NextConfig));
