@@ -40,7 +40,8 @@
     "tmp",
     "temp",
     ".temp",
-    "e2e"
+    "e2e",
+    ".next"
   ],
-  "include": ["**/*.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "next-env.d.ts"]
+  "include": ["**/*.d.ts", "**/*.ts", "**/*.tsx", "next-env.d.ts"]
 }

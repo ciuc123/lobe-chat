@@ -176,7 +176,7 @@ if command -v pnpm >/dev/null 2>&1; then
         echo "Detected outdated pnpm lockfile. Running workspace install to update lockfile(s)..."
 
         # Try updating the workspace lockfile(s) at repo root inside the worktree
-        (cd "${WORKTREE_DIR}" && pnpm install --no-frozen-lockfile -w)
+        (cd "${WORKTREE_DIR}" && pnpm install --no-frozen-lockfile -w --lockfile-only --ignore-scripts)
 
         # Check for any changed pnpm lockfiles anywhere in the repo/worktree
         CHANGED_LOCKFILES=$(git -C "${WORKTREE_DIR}" status --porcelain | awk '{print $2}' | grep -E 'pnpm-lock.yaml$' || true)
