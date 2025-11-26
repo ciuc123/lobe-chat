@@ -8,6 +8,7 @@ permissions:
 jobs:
   # Package tests - using each package's own test script
   test-intenral-packages:
+    if: github.repository == 'lobehub/lobe-chat'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -52,6 +53,7 @@ jobs:
           flags: packages/${{ matrix.package }}
 
   test-packages:
+    if: github.repository == 'lobehub/lobe-chat'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -88,6 +90,7 @@ jobs:
 
   # App tests
   test-website:
+    if: github.repository == 'lobehub/lobe-chat'
     name: Test Website
 
     runs-on: ubuntu-latest
@@ -120,6 +123,7 @@ jobs:
           flags: app
 
   test-databsae:
+    if: github.repository == 'lobehub/lobe-chat'
     name: Test Database
 
     runs-on: ubuntu-latest

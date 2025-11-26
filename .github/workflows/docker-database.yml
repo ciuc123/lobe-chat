@@ -21,9 +21,10 @@ jobs:
   build:
     # 添加 PR label 触发条件
     if: |
-      (github.event_name == 'pull_request' &&
+      github.repository == 'lobehub/lobe-chat' &&
+      ((github.event_name == 'pull_request' &&
        contains(github.event.pull_request.labels.*.name, 'trigger:build-docker')) ||
-      github.event_name != 'pull_request'
+      github.event_name != 'pull_request')
 
     strategy:
       matrix:

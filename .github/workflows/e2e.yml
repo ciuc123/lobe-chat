@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
     e2e:
+        if: github.repository == 'lobehub/lobe-chat'
         name: Test Web App
         runs-on: ubuntu-latest
         timeout-minutes: 25

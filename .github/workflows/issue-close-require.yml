@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   issue-check-inactive:
+    if: github.repository == 'lobehub/lobe-chat'
     permissions:
       issues: write # for actions-cool/issues-helper to update issues
       pull-requests: write # for actions-cool/issues-helper to update PRs
@@ -23,6 +24,7 @@ jobs:
           inactive-day: 60
 
   issue-close-require:
+    if: github.repository == 'lobehub/lobe-chat'
     permissions:
       issues: write # for actions-cool/issues-helper to update issues
       pull-requests: write # for actions-cool/issues-helper to update PRs
