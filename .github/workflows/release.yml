@@ -12,6 +12,7 @@ on:
 
 jobs:
   release:
+    if: github.repository == 'lobehub/lobe-chat'
     name: Release
     runs-on: ubuntu-latest
 
