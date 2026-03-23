@@ -1,4 +1,5 @@
 import { UserJSON } from '@clerk/backend';
+import { TRPCError } from '@trpc/server';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
@@ -91,8 +92,9 @@ export const userRouter = router({
           }
         }
 
-        console.error('getUserState:', error);
-        throw error;
+        // Log full error details server-side, but return a sanitized TRPC error to clients
+        pino.error({ err: error, msg: 'getUserState failed', userId: ctx.userId });
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to get user state' });
       }
     }
 
